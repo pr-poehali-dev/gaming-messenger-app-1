@@ -23,8 +23,9 @@ const AuthScreen = ({ onAuth }: AuthScreenProps) => {
       setStep('code');
       
       toast({
-        title: 'Код отправлен',
-        description: `Код подтверждения: ${randomCode}`,
+        title: 'SMS отправлено',
+        description: `Код подтверждения отправлен на ${phone}. Для демо: ${randomCode}`,
+        duration: 10000,
       });
     }
   };

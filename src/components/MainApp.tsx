@@ -1,24 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { User, Friend } from '@/types';
+import { storage } from '@/utils/storage';
+import ChatView from './ChatView';
+import GamesTab from './GamesTab';
+import ProfileTab from './ProfileTab';
+import FriendsTab from './FriendsTab';
 
 type Tab = 'chats' | 'groups' | 'friends' | 'games' | 'profile';
 
 interface MainAppProps {
-  userData: { phone: string; userId: string } | null;
+  userData: User | null;
 }
 
-const MainApp = ({ userData }: MainAppProps) => {
+const MainApp = ({ userData: initialUserData }: MainAppProps) => {
   const [activeTab, setActiveTab] = useState<Tab>('chats');
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [userData, setUserData] = useState<User | null>(initialUserData);
+  const [chats, setChats] = useState<Record<string, any>>({});
 
-  const mockChats = [
-    { id: 1, name: 'ProGamer2024', avatar: '', message: 'Го катку в Valorant?', time: '14:32', unread: 3, online: true },
-    { id: 2, name: 'StreamKing', avatar: '', message: 'Смотри что я нашел', time: '13:15', unread: 0, online: true },
-    { id: 3, name: 'NinjaWarrior', avatar: '', message: 'GG wp', time: '12:05', unread: 1, online: false },
-    { id: 4, name: 'GameMaster', avatar: '', message: 'Завтра турнир, готов?', time: '11:20', unread: 0, online: true },
-  ];
+  useEffect(() => {
+    setFriends(storage.getFriends());
+    setChats(storage.getChats());
+  }, []);
+
+  const handleOpenChat = (friend: Friend) => {
+    setSelectedFriend(friend);
+  };
+
+  const handleBackToChats = () => {
+    setSelectedFriend(null);
+    setChats(storage.getChats());
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    setUserData(updatedUser);
+  };
 
   const tabs = [
     { id: 'chats' as Tab, icon: 'MessageSquare', label: 'Чаты' },
@@ -27,6 +48,15 @@ const MainApp = ({ userData }: MainAppProps) => {
     { id: 'games' as Tab, icon: 'Gamepad2', label: 'Игры' },
     { id: 'profile' as Tab, icon: 'User', label: 'Профиль' },
   ];
+
+  const totalUnread = Object.values(chats).reduce(
+    (sum: number, chat: any) => sum + (chat.unreadCount || 0),
+    0
+  );
+
+  if (selectedFriend && userData) {
+    return <ChatView friend={selectedFriend} currentUserId={userData.userId} onBack={handleBackToChats} />;
+  }
 
   return (
     <div className="min-h-screen bg-gaming-dark flex flex-col">
@@ -49,7 +79,9 @@ const MainApp = ({ userData }: MainAppProps) => {
           <div className="flex items-center gap-3">
             <button className="p-2 hover:bg-gaming-darker rounded-lg transition-colors relative">
               <Icon name="Bell" size={20} className="text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-gaming-neon-pink rounded-full"></span>
+              {totalUnread > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-gaming-neon-pink rounded-full"></span>
+              )}
             </button>
             <button className="p-2 hover:bg-gaming-darker rounded-lg transition-colors">
               <Icon name="Search" size={20} className="text-muted-foreground" />
@@ -58,49 +90,72 @@ const MainApp = ({ userData }: MainAppProps) => {
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col max-w-screen-xl w-full mx-auto">
-        <ScrollArea className="flex-1 p-4">
+      <div className="flex-1 flex flex-col max-w-screen-xl w-full mx-auto overflow-hidden">
+        <ScrollArea className="flex-1">
           {activeTab === 'chats' && (
-            <div className="space-y-2 animate-fade-in">
-              {mockChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className="bg-gaming-card border border-gaming-border rounded-xl p-4 hover:border-gaming-neon-purple transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar className="w-12 h-12 border-2 border-gaming-neon-purple/30">
-                        <AvatarImage src={chat.avatar} />
-                        <AvatarFallback className="bg-gaming-neon-purple text-white font-semibold">
-                          {chat.name[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      {chat.online && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-gaming-neon-green rounded-full border-2 border-gaming-card"></div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-foreground truncate">{chat.name}</h3>
-                        <span className="text-xs text-muted-foreground">{chat.time}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">{chat.message}</p>
-                    </div>
-
-                    {chat.unread > 0 && (
-                      <Badge className="bg-gaming-neon-purple hover:bg-gaming-neon-purple text-white">
-                        {chat.unread}
-                      </Badge>
-                    )}
-                  </div>
+            <div className="p-4 space-y-2 animate-fade-in">
+              {friends.length === 0 ? (
+                <div className="text-center py-16">
+                  <Icon name="MessageSquare" size={64} className="text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-foreground mb-2">Пока нет чатов</h3>
+                  <p className="text-muted-foreground mb-6">Пригласите друзей, чтобы начать общение</p>
                 </div>
-              ))}
+              ) : (
+                friends.map((friend) => {
+                  const chat = chats[friend.id];
+                  const lastMessage = chat?.messages?.[chat.messages.length - 1];
+                  
+                  return (
+                    <div
+                      key={friend.id}
+                      onClick={() => handleOpenChat(friend)}
+                      className="bg-gaming-card border border-gaming-border rounded-xl p-4 hover:border-gaming-neon-purple transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Avatar className="w-12 h-12 border-2 border-gaming-neon-purple/30">
+                            <AvatarImage src={friend.avatar} />
+                            <AvatarFallback className="bg-gaming-neon-purple text-white font-semibold">
+                              {friend.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          {friend.online && (
+                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-gaming-neon-green rounded-full border-2 border-gaming-card"></div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-semibold text-foreground truncate">{friend.name}</h3>
+                            {lastMessage && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(lastMessage.timestamp).toLocaleTimeString('ru-RU', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {lastMessage?.text || 'Начните общение'}
+                          </p>
+                        </div>
+
+                        {chat?.unreadCount > 0 && (
+                          <Badge className="bg-gaming-neon-purple hover:bg-gaming-neon-purple text-white">
+                            {chat.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
           {activeTab === 'groups' && (
-            <div className="text-center py-16 animate-fade-in">
+            <div className="text-center py-16 px-4 animate-fade-in">
               <Icon name="Users" size={64} className="text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">Группы</h3>
               <p className="text-muted-foreground mb-6">Создавайте группы до 200к человек</p>
@@ -110,54 +165,12 @@ const MainApp = ({ userData }: MainAppProps) => {
             </div>
           )}
 
-          {activeTab === 'friends' && (
-            <div className="text-center py-16 animate-fade-in">
-              <Icon name="UserPlus" size={64} className="text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">Друзья</h3>
-              <p className="text-muted-foreground mb-6">Пригласите друзей по ссылке</p>
-              <button className="px-6 py-3 bg-gradient-to-r from-gaming-neon-purple to-gaming-neon-cyan rounded-xl text-white font-semibold hover:opacity-90 transition-opacity">
-                Пригласить друга
-              </button>
-            </div>
-          )}
+          {activeTab === 'friends' && <FriendsTab onOpenChat={handleOpenChat} />}
 
-          {activeTab === 'games' && (
-            <div className="text-center py-16 animate-fade-in">
-              <Icon name="Gamepad2" size={64} className="text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">Игры</h3>
-              <p className="text-muted-foreground mb-6">Интеграция с Roblox и другими играми</p>
-            </div>
-          )}
+          {activeTab === 'games' && <GamesTab />}
 
-          {activeTab === 'profile' && (
-            <div className="max-w-md mx-auto py-8 animate-fade-in">
-              <div className="text-center mb-8">
-                <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-gaming-neon-purple">
-                  <AvatarFallback className="bg-gaming-neon-purple text-white text-3xl font-bold">
-                    {userData?.phone.slice(-2) || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <h2 className="text-2xl font-heading font-bold text-foreground mb-1">
-                  {userData?.phone || 'Гость'}
-                </h2>
-                <p className="text-muted-foreground">@{userData?.userId || 'user_123'}</p>
-              </div>
-
-              <div className="space-y-2">
-                <button className="w-full bg-gaming-card border border-gaming-border rounded-xl p-4 hover:border-gaming-neon-purple transition-all text-left flex items-center gap-3">
-                  <Icon name="User" size={20} className="text-gaming-neon-purple" />
-                  <span className="text-foreground font-medium">Редактировать профиль</span>
-                </button>
-                <button className="w-full bg-gaming-card border border-gaming-border rounded-xl p-4 hover:border-gaming-neon-cyan transition-all text-left flex items-center gap-3">
-                  <Icon name="Crown" size={20} className="text-gaming-neon-cyan" />
-                  <span className="text-foreground font-medium">Premium подписка</span>
-                </button>
-                <button className="w-full bg-gaming-card border border-gaming-border rounded-xl p-4 hover:border-gaming-neon-pink transition-all text-left flex items-center gap-3">
-                  <Icon name="Sticker" size={20} className="text-gaming-neon-pink" />
-                  <span className="text-foreground font-medium">Мои стикеры</span>
-                </button>
-              </div>
-            </div>
+          {activeTab === 'profile' && userData && (
+            <ProfileTab userData={userData} onUpdateUser={handleUpdateUser} />
           )}
         </ScrollArea>
 
