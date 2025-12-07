@@ -6,6 +6,7 @@ import MainApp from '@/components/MainApp';
 const Index = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userData, setUserData] = useState<{ phone: string; userId: string } | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -15,15 +16,29 @@ const Index = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const savedUser = localStorage.getItem('rilmas_user');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      setUserData(user);
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleAuth = (user: { phone: string; userId: string }) => {
+    setUserData(user);
+    setIsAuthenticated(true);
+  };
+
   if (showSplash) {
     return <SplashScreen />;
   }
 
   if (!isAuthenticated) {
-    return <AuthScreen onAuth={() => setIsAuthenticated(true)} />;
+    return <AuthScreen onAuth={handleAuth} />;
   }
 
-  return <MainApp />;
+  return <MainApp userData={userData} />;
 };
 
 export default Index;

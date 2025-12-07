@@ -6,7 +6,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 type Tab = 'chats' | 'groups' | 'friends' | 'games' | 'profile';
 
-const MainApp = () => {
+interface MainAppProps {
+  userData: { phone: string; userId: string } | null;
+}
+
+const MainApp = ({ userData }: MainAppProps) => {
   const [activeTab, setActiveTab] = useState<Tab>('chats');
 
   const mockChats = [
@@ -129,10 +133,14 @@ const MainApp = () => {
             <div className="max-w-md mx-auto py-8 animate-fade-in">
               <div className="text-center mb-8">
                 <Avatar className="w-24 h-24 mx-auto mb-4 border-4 border-gaming-neon-purple">
-                  <AvatarFallback className="bg-gaming-neon-purple text-white text-3xl font-bold">U</AvatarFallback>
+                  <AvatarFallback className="bg-gaming-neon-purple text-white text-3xl font-bold">
+                    {userData?.phone.slice(-2) || 'U'}
+                  </AvatarFallback>
                 </Avatar>
-                <h2 className="text-2xl font-heading font-bold text-foreground mb-1">Гость</h2>
-                <p className="text-muted-foreground">@user_123</p>
+                <h2 className="text-2xl font-heading font-bold text-foreground mb-1">
+                  {userData?.phone || 'Гость'}
+                </h2>
+                <p className="text-muted-foreground">@{userData?.userId || 'user_123'}</p>
               </div>
 
               <div className="space-y-2">
